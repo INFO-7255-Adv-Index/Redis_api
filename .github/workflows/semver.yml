@@ -15,9 +15,9 @@ jobs:
       - name: Determine commit messages since last tag
         id: commit_messages
         run: |
-          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-          latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
-          git log $latestTag..HEAD --oneline > commit_messages.txt
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/* || echo "Failed to fetch tags"
+          latestTag=$(git describe --tags `git rev-list --tags --max-count=1` || echo "Failed to get latest tag")
+          git log $latestTag..HEAD --oneline > commit_messages.txt || echo "Failed to get commit messages"
         shell: bash
 
       - name: Determine next version
