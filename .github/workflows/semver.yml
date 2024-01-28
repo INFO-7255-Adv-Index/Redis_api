@@ -3,7 +3,7 @@ name: Semantic Versioning with Commit Messages
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   release:
