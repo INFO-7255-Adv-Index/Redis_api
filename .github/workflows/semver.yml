@@ -1,0 +1,59 @@
+name: Semantic Versioning with Commit Messages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Determine commit messages since last tag
+        id: commit_messages
+        run: |
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          git log $latestTag..HEAD --oneline > commit_messages.txt
+        shell: bash
+
+      - name: Determine next version
+        id: semver
+        uses: rickstaa/action-get-semver@v1.4.6
+        with:
+          commit_messages: ${{ steps.commit_messages.outputs.stdout }}
+        continue-on-error: true
+
+      - name: Update Changelog
+        id: changelog
+        run: |
+          echo "## 🚀 Version ${{ steps.semver.outputs.next_version }}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "📝 ${{ steps.semver.outputs.changelog }}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "------------------------" >> CHANGELOG.md
+        shell: bash
+
+      - name: Set version if not found
+        id: check_version
+        run: |
+          if [ -z "${{ steps.semver.outputs.next_version }}" ]; then
+            echo "No version found, defaulting to 0.1.0"
+            echo "::set-output name=version::0.1.0"
+          else
+            echo "::set-output name=version::${{ steps.semver.outputs.next_version }}"
+          fi
+        shell: bash
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.check_version.outputs.version }}
+          release_name: Release ${{ steps.check_version.outputs.version }}
+          draft: false
+          prerelease: false
