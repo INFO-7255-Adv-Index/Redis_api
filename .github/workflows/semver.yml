@@ -1,12 +1,17 @@
 name: Semantic Versioning with Commit Messages
 
+
 on:
   push:
     branches:
-      - master
+      - main  # Replace with your main branch name
+  pull_request:
+    types: [closed]
 
 jobs:
-  release:
+  build:
+    name: Create Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,42 +23,31 @@ jobs:
           git fetch --depth=1 origin +refs/tags/*:refs/tags/* || echo "Failed to fetch tags"
           latestTag=$(git describe --tags `git rev-list --tags --max-count=1` || echo "Failed to get latest tag")
           git log $latestTag..HEAD --oneline > commit_messages.txt || echo "Failed to get commit messages"
-        shell: bash
 
-      - name: Determine next version
+      - name: Rust semver
+        id: semver_cargo
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+          # Use a Rust-specific tool to analyze commit messages and determine the next version
+          # Example: cargo-semantic-version or any other tool you prefer
+          # Update the Cargo.toml file with the new version
+
+      - name: Version Bump
         id: semver
-        uses: rickstaa/action-get-semver@v1.4.6
+        uses: saadmk11/github-actions-version-updater@v0.8.1
         with:
-          commit_messages: ${{ steps.commit_messages.outputs.stdout }}
-        continue-on-error: true
-
+            token: ${{ secrets.WORKFLOW_SECRET }}
+          # Update the Cargo.toml file with the new version
       - name: Update Changelog
         id: changelog
         run: |
-          echo "## 🚀 Version ${{ steps.semver.outputs.next_version }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "📝 ${{ steps.semver.outputs.changelog }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "------------------------" >> CHANGELOG.md
-        shell: bash
-
-      - name: Set version if not found
-        id: check_version
-        run: |
-          if [ -z "${{ steps.semver.outputs.next_version }}" ]; then
-            echo "No version found, defaulting to 0.1.0"
-            echo "::set-output name=version::0.1.0"
-          else
-            echo "::set-output name=version::${{ steps.semver.outputs.next_version }}"
-          fi
-        shell: bash
+          # Update the changelog file with the new version and generated changelog
 
       - name: Create Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.check_version.outputs.version }}
-          release_name: Release ${{ steps.check_version.outputs.version }}
+          tag_name: v${{ steps.semver.outputs.next_version }}
+          release_name: Release ${{ steps.semver.outputs.next_version }}
           draft: false
           prerelease: false
