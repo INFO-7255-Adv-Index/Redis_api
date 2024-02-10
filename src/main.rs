@@ -91,7 +91,7 @@ async fn store_json(
     let mut headers = HeaderMap::new();
     headers.insert(ETAG, HeaderValue::from_str(&etag_value).unwrap());
     let response = Response::builder()
-    .status(StatusCode::OK)
+    .status(StatusCode::CREATED)
     .header(ETAG, etag_value)
     .body(json_string.into())
     .unwrap();
